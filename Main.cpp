@@ -136,7 +136,7 @@ string PropertiesOfFile(struct stat &sb, const string &path)
     //Field 7
     ss << getpwuid(sb.st_gid)->pw_name << " ";
     //Field 8
-    ss << std::setw(8) << sb.st_size;
+    ss << std::setw(8) << sb.st_size << " ";
     //Field 9
     char buf[100];
     string timeString = asctime(localtime(&sb.st_atim.tv_sec));
@@ -184,28 +184,28 @@ void CommandLS(string path)
     }
     else if(S_ISDIR(sb.st_mode))     //Is a directory
     {        
-        // DIR *dr;
-        // struct dirent *en;
-        // dr = opendir(filePath.c_str()); //open all directory
-        // if (dr) {
-        //     while ((en = readdir(dr)) != NULL) 
-        //     {
-        //         if(en->d_name[0] != '.'
-        //         && en->d_name != "..")
-        //         {
-                    
-        //         }
-        //     }
-        //     closedir(dr); //close all directory
-        // }
-        for(string s : GetFilesAlphabetically(filePath))
-        {
-            //Look at properties and print accordingly
-            string subFilePath = filePath + "/" + s;
-            struct stat sb;
-            stat(subFilePath.c_str(), &sb);
-            cout << PropertiesOfFile(sb, subFilePath) << "\n";
+        DIR *dr;
+        struct dirent *en;
+        dr = opendir(filePath.c_str()); //open all directory
+        if (dr) {
+            while ((en = readdir(dr)) != NULL) 
+            {
+                if(en->d_name[0] != '.'
+                && en->d_name != "..")
+                {
+                    string subFilePath = filePath + "/" + en->d_name;
+                    struct stat sb;
+                    stat(subFilePath.c_str(), &sb);
+                    cout << PropertiesOfFile(sb, subFilePath) << "\n";
+                }
+            }
+            closedir(dr); //close all directory
         }
+        // for(string s : GetFilesAlphabetically(filePath))
+        // {
+        //     //Look at properties and print accordingly
+            
+        // }
     }
     else                        //Is not a directory
     {   
