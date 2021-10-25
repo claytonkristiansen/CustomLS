@@ -156,59 +156,43 @@ string PropertiesOfFile(struct stat &sb, const string &path, int userWidth = 0, 
 {
     bool isSoftLink = false;
     stringstream ss;
-    //Field 1
-    if((sb.st_mode & S_IFMT) == S_IFLNK)            //Is symbolic link
-    {
-        ss << "l";
-        isSoftLink = true;
-    }
-    else if((sb.st_mode & S_IFMT) == S_IFREG)       //Is regular file
-    {
-        ss << "-";
-    }
-    else if((sb.st_mode & S_IFMT) == S_IFDIR)       //Is directory
-    {
-        ss << "d";
-    }
-    else if((sb.st_mode & S_IFMT) == S_IFIFO)       //Is FIFO
-    {
-        ss << "p";
-    }
-    
-    //Field 2
+    //Field 1, file type
+    if((sb.st_mode & S_IFMT) == S_IFLNK) {ss << "l"; isSoftLink = true;}        //Is symbolic link
+    else if((sb.st_mode & S_IFMT) == S_IFREG) {ss << "-";}                      //Is regular file
+    else if((sb.st_mode & S_IFMT) == S_IFDIR) {ss << "d";}                      //Is directory
+    else if((sb.st_mode & S_IFMT) == S_IFIFO) {ss << "p";}                      //Is FIFO
+    //Field 2, user permissions
     if((S_IRUSR & sb.st_mode) == S_IRUSR) ss << "r";
     else ss << "-";
     if((S_IWUSR & sb.st_mode) == S_IWUSR) ss << "w";
     else ss << "-";
     if((S_IXUSR & sb.st_mode) == S_IXUSR) ss << "x";
     else ss << "-";
-    //Field 3
+    //Field 3, group permissions
     if((S_IRGRP & sb.st_mode) == S_IRGRP) ss << "r";
     else ss << "-";
     if((S_IWGRP & sb.st_mode) == S_IWGRP) ss << "w";
     else ss << "-";
     if((S_IXGRP & sb.st_mode) == S_IXGRP) ss << "x";
     else ss << "-";
-    //Field 4
+    //Field 4, others permissions
     if((S_IROTH & sb.st_mode) == S_IROTH) ss << "r";
     else ss << "-";
     if((S_IWOTH & sb.st_mode) == S_IWOTH) ss << "w";
     else ss << "-";
     if((S_IXOTH & sb.st_mode) == S_IXOTH) ss << "x";
     else ss << "-";
-    //Field 5
+    //Field 5, number of links to this file
     ss << " " << sb.st_nlink << " ";
-    //Field 6
+    //Field 6, user name
     ss << std::setw(userWidth) << getpwuid(sb.st_uid)->pw_name << " ";
-    //Field 7
+    //Field 7, group name
     ss << std::setw(groupWidth) << getpwuid(sb.st_gid)->pw_name << " ";
-    //Field 8
+    //Field 8, file size in Bytes
     ss << std::setw(dataWidth) << sb.st_size << " ";
-    //Field 9
-    char buf[100];
-    string timeString = asctime(localtime(&sb.st_mtim.tv_sec));
-    ss << timeString.substr(4, 12) << " ";
-    //Field 10
+    //Field 9, time of last modification
+    ss << string(asctime(localtime(&sb.st_mtim.tv_sec))).substr(4, 12) << " ";
+    //Field 10, file name
     ss << GetName(path);
     //Optional soft link Field
     if(isSoftLink)
