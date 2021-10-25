@@ -15,6 +15,10 @@
 #include <stdio.h>
 #include <errno.h>
 #include <pwd.h>
+#include <algorithm>    // std::sort
+#include <iomanip>
+
+namespace fs = std::filesystem;
 
 using std::cout;
 using std::cin;
@@ -59,12 +63,43 @@ string GetName(string path)
     return ss.str();
 }
 
+bool compareFunction(string sL, string sR)
+{
+    return sL < sR;
+}
+
+vector<string> GetFilesAlphabetically(string dir)
+{
+    vector<string> fileNames;
+    DIR *dr;
+    struct dirent *en;
+    dr = opendir(dir.c_str()); //open all directory
+    if (dr) {
+        while ((en = readdir(dr)) != NULL) 
+        {
+            if(en->d_name[0] != '.'
+            && en->d_name != "..")
+            {
+                fileNames.push_back(en->d_name);
+            }
+        }
+        closedir(dr); //close all directory
+    }
+    std::sort(fileNames.begin(), fileNames.end(), compareFunction);
+    return fileNames;
+}
+
 string PropertiesOfFile(struct stat &sb, const string &path)
 {
     bool isSoftLink = false;
     stringstream ss;
     //Field 1
-    if((sb.st_mode & S_IFMT) == S_IFREG)             //Is regular file
+    if(fs::is_symlink(path))        //Is link
+    {
+        ss << "l";
+        isSoftLink = true;
+    }
+    else if((sb.st_mode & S_IFMT) == S_IFREG)             //Is regular file
     {
         ss << "-";
     }
@@ -72,11 +107,7 @@ string PropertiesOfFile(struct stat &sb, const string &path)
     {
         ss << "d";
     }
-    else if((sb.st_mode & S_IFMT) == S_IFLNK)        //Is link
-    {
-        ss << "l";
-        isSoftLink = true;
-    }
+    
     //Field 2
     if((S_IRUSR & sb.st_mode) == S_IRUSR) ss << "r";
     else ss << "-";
@@ -101,22 +132,22 @@ string PropertiesOfFile(struct stat &sb, const string &path)
     //Field 5
     ss << " " << sb.st_nlink << " ";
     //Field 6
-    ss << getpwuid(sb.st_uid)->pw_name << "\t\t";
+    ss << getpwuid(sb.st_uid)->pw_name << " ";
     //Field 7
-    ss << getpwuid(sb.st_gid)->pw_name << "\t\t";
+    ss << getpwuid(sb.st_gid)->pw_name << " ";
     //Field 8
-    ss << sb.st_size << "\t\t";
+    ss << std::setw(8) << sb.st_size;
     //Field 9
     char buf[100];
-    std::strftime(buf, sizeof(buf), "%D %T", localtime(&sb.st_atim.tv_sec));
-    ss << buf << "\t";
+    string timeString = asctime(localtime(&sb.st_atim.tv_sec));
+    timeString.pop_back();
+    ss << timeString << " ";
     //Field 10
     ss << GetName(path);
     //Optional soft link Field
     if(isSoftLink)
     {
-        ss << " -> ";
-
+        ss << " -> " << fs::read_symlink(path);
     }   
 
     return ss.str();
@@ -153,23 +184,27 @@ void CommandLS(string path)
     }
     else if(S_ISDIR(sb.st_mode))     //Is a directory
     {        
-        DIR *dr;
-        struct dirent *en;
-        dr = opendir(filePath.c_str()); //open all directory
-        if (dr) {
-            while ((en = readdir(dr)) != NULL) 
-            {
-                if(en->d_name[0] != '.'
-                && en->d_name != "..")
-                {
-                    //Look at properties and print accordingly
-                    string subFilePath = filePath + "/" + en->d_name;
-                    struct stat sb;
-                    stat(subFilePath.c_str(), &sb);
-                    cout << PropertiesOfFile(sb, subFilePath) << "\n";
-                }
-            }
-            closedir(dr); //close all directory
+        // DIR *dr;
+        // struct dirent *en;
+        // dr = opendir(filePath.c_str()); //open all directory
+        // if (dr) {
+        //     while ((en = readdir(dr)) != NULL) 
+        //     {
+        //         if(en->d_name[0] != '.'
+        //         && en->d_name != "..")
+        //         {
+                    
+        //         }
+        //     }
+        //     closedir(dr); //close all directory
+        // }
+        for(string s : GetFilesAlphabetically(filePath))
+        {
+            //Look at properties and print accordingly
+            string subFilePath = filePath + "/" + s;
+            struct stat sb;
+            stat(subFilePath.c_str(), &sb);
+            cout << PropertiesOfFile(sb, subFilePath) << "\n";
         }
     }
     else                        //Is not a directory
