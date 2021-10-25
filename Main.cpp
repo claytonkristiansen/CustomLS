@@ -2,18 +2,11 @@
 #include <vector>
 #include <iostream>
 #include <dirent.h>
-#include <sys/types.h>
 #include <filesystem>
 #include <unistd.h>
 #include <sstream>
 #include <sys/stat.h>
-#include <stdint.h>
-#include <time.h>
 #include <ctime>
-#include <sys/sysmacros.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
 #include <pwd.h>
 #include <algorithm>    // std::sort
 #include <iomanip>
