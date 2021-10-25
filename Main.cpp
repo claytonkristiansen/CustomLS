@@ -28,7 +28,7 @@ using std::stringstream;
 
 #define PATH_BUFFER_SIZE 200
 
-string GetRoot(string path)
+string GetRoot(string path)         //Gets first element in path string
 {
     stringstream ss("");
     for(char c : path)
@@ -45,7 +45,7 @@ string GetRoot(string path)
     return ss.str();
 }
 
-string GetName(string path)
+string GetName(string path)         //Gets last element in path string
 {
     stringstream ss("");
     int i = path.size() - 1;
@@ -60,7 +60,7 @@ string GetName(string path)
     return ss.str();
 }
 
-string GoUpDirectory(string path)
+string GoUpDirectory(string path)   //Removes last element in path string
 {
     int i = path.size() - 1;
     for(; i > 0; --i)
@@ -70,7 +70,7 @@ string GoUpDirectory(string path)
     return path.substr(0, i);
 }
 
-bool compareFunction(string sL, string sR)
+bool compareFunction(string sL, string sR)      //Uses simple string comparison for alphabetical sorting
 {
     std::transform(sL.begin(), sL.end(), sL.begin(), ::tolower);
     std::transform(sR.begin(), sR.end(), sR.begin(), ::tolower);
@@ -122,7 +122,7 @@ void MaxWidths(string dir, int &numReferencesWidth, int &userNameWidth, int &gro
     }
 }
 
-int NumBlocks(string dir)
+int NumBlocks(string dir)               //Gets twice the number of blocks used by the files in this dir
 {
     int blocks = 0;
     DIR *dr;
@@ -166,6 +166,7 @@ vector<string> GetFilesAlphabetically(string dir)   //Gets files in order that I
     return fileNames;
 }
 
+//Returns a string representing one line of the ls -l for a specific file.
 string PropertiesOfFile(struct stat &sb, const string &path, int refWidth = 0, int userWidth = 0, int groupWidth = 0, int dataWidth = 0)
 {
     bool isSoftLink = false;
@@ -232,7 +233,7 @@ void CommandLS(string path)                     //Processes the command
     }
     else if(path == "..")                   //Directory up
     {
-
+        filePath = GoUpDirectory(workingDir);
     }
     else if(path == "." || path == "")      //Current directory
     {
@@ -271,15 +272,7 @@ void CommandLS(string path)                     //Processes the command
     {   
         cout << PropertiesOfFile(sb, filePath) << "\n";
     }
-
-    
-    
-
-
-    
 }
-
-
 
 int main(int argc, char* argv[])
 {
@@ -293,7 +286,5 @@ int main(int argc, char* argv[])
         path = argv[2];
     }
     CommandLS(path);
-
-
     return 0;
 }
