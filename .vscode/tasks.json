@@ -9,7 +9,7 @@
                 "-g",
                 "${file}",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}",
+                "myls",
                 "-std=c++17"
             ],
             "options": {

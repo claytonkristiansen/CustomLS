@@ -65,10 +65,73 @@ string GetName(string path)
 
 bool compareFunction(string sL, string sR)
 {
+    std::transform(sL.begin(), sL.end(), sL.begin(), ::tolower);
+    std::transform(sR.begin(), sR.end(), sR.begin(), ::tolower);
     return sL < sR;
 }
 
-vector<string> GetFilesAlphabetically(string dir)
+void MaxWidths(string dir, int &userNameWidth, int &groupNameWidth, int &dataSizeWidth)
+{
+    userNameWidth = 0;
+    groupNameWidth = 0;
+    dataSizeWidth = 0;
+    DIR *dr;
+    struct dirent *en;
+    dr = opendir(dir.c_str()); //open all directory
+    if (dr) {
+        while ((en = readdir(dr)) != NULL) 
+        {
+            if(en->d_name[0] != '.'
+            && en->d_name != "..")
+            {
+                string subFilePath = dir + "/" + en->d_name;
+                struct stat sb;
+                lstat(subFilePath.c_str(), &sb);
+                int userSize = string(getpwuid(sb.st_uid)->pw_name).size();
+                int groupSize = string(getpwuid(sb.st_gid)->pw_name).size();
+                int dataSize = string(std::to_string((int)sb.st_size)).size();
+                if(userSize > userNameWidth)
+                {
+                    userNameWidth = userSize;
+                }
+                if(groupSize > groupNameWidth)
+                {
+                    groupNameWidth = groupSize;
+                }
+                if(dataSize > dataSizeWidth)
+                {
+                    dataSizeWidth = dataSize;
+                }
+            }
+        }
+        closedir(dr); //close all directory
+    }
+}
+
+int NumBlocks(string dir)
+{
+    int blocks = 0;
+    DIR *dr;
+    struct dirent *en;
+    dr = opendir(dir.c_str()); //open all directory
+    if (dr) {
+        while ((en = readdir(dr)) != NULL) 
+        {
+            if(en->d_name[0] != '.'
+            && en->d_name != "..")
+            {
+                string subFilePath = dir + "/" + en->d_name;
+                struct stat sb;
+                lstat(subFilePath.c_str(), &sb);
+                blocks += sb.st_blocks;
+            }
+        }
+        closedir(dr); //close all directory
+    }
+    return blocks;
+}
+
+vector<string> GetFilesAlphabetically(string dir)   //Gets files in order that I want for different systems
 {
     vector<string> fileNames;
     DIR *dr;
@@ -89,23 +152,27 @@ vector<string> GetFilesAlphabetically(string dir)
     return fileNames;
 }
 
-string PropertiesOfFile(struct stat &sb, const string &path)
+string PropertiesOfFile(struct stat &sb, const string &path, int userWidth = 0, int groupWidth = 0, int dataWidth = 0)
 {
     bool isSoftLink = false;
     stringstream ss;
     //Field 1
-    if(fs::is_symlink(path))        //Is link
+    if((sb.st_mode & S_IFMT) == S_IFLNK)            //Is symbolic link
     {
         ss << "l";
         isSoftLink = true;
     }
-    else if((sb.st_mode & S_IFMT) == S_IFREG)             //Is regular file
+    else if((sb.st_mode & S_IFMT) == S_IFREG)       //Is regular file
     {
         ss << "-";
     }
-    else if((sb.st_mode & S_IFMT) == S_IFDIR)        //Is directory
+    else if((sb.st_mode & S_IFMT) == S_IFDIR)       //Is directory
     {
         ss << "d";
+    }
+    else if((sb.st_mode & S_IFMT) == S_IFIFO)       //Is FIFO
+    {
+        ss << "p";
     }
     
     //Field 2
@@ -132,22 +199,21 @@ string PropertiesOfFile(struct stat &sb, const string &path)
     //Field 5
     ss << " " << sb.st_nlink << " ";
     //Field 6
-    ss << getpwuid(sb.st_uid)->pw_name << " ";
+    ss << std::setw(userWidth) << getpwuid(sb.st_uid)->pw_name << " ";
     //Field 7
-    ss << getpwuid(sb.st_gid)->pw_name << " ";
+    ss << std::setw(groupWidth) << getpwuid(sb.st_gid)->pw_name << " ";
     //Field 8
-    ss << std::setw(8) << sb.st_size << " ";
+    ss << std::setw(dataWidth) << sb.st_size << " ";
     //Field 9
     char buf[100];
-    string timeString = asctime(localtime(&sb.st_atim.tv_sec));
-    timeString.pop_back();
-    ss << timeString << " ";
+    string timeString = asctime(localtime(&sb.st_mtim.tv_sec));
+    ss << timeString.substr(4, 12) << " ";
     //Field 10
     ss << GetName(path);
     //Optional soft link Field
     if(isSoftLink)
     {
-        ss << " -> " << fs::read_symlink(path);
+        ss << " -> " << string(fs::read_symlink(path));
     }   
 
     return ss.str();
@@ -178,34 +244,25 @@ void CommandLS(string path)
 
 
     struct stat sb;
-    if(stat(filePath.c_str(), &sb) == -1)   //Doesn't exist
+    if(lstat(filePath.c_str(), &sb) == -1)   //Doesn't exist
     {
         cout << "ls: cannot access" << filePath << ": No such file or directory\n";
     }
     else if(S_ISDIR(sb.st_mode))     //Is a directory
-    {        
-        DIR *dr;
-        struct dirent *en;
-        dr = opendir(filePath.c_str()); //open all directory
-        if (dr) {
-            while ((en = readdir(dr)) != NULL) 
-            {
-                if(en->d_name[0] != '.'
-                && en->d_name != "..")
-                {
-                    string subFilePath = filePath + "/" + en->d_name;
-                    struct stat sb;
-                    stat(subFilePath.c_str(), &sb);
-                    cout << PropertiesOfFile(sb, subFilePath) << "\n";
-                }
-            }
-            closedir(dr); //close all directory
+    {      
+        cout << "total " << NumBlocks(filePath) / 2 << "\n";
+        int userWidth;
+        int groupWidth;
+        int dataWidth;
+        MaxWidths(filePath, userWidth, groupWidth, dataWidth);
+        for(string name : GetFilesAlphabetically(filePath))
+        {
+            //Look at properties and print accordingly
+            string subFilePath = filePath + "/" + name;
+            struct stat sb;
+            lstat(subFilePath.c_str(), &sb);
+            cout << PropertiesOfFile(sb, subFilePath, userWidth, groupWidth, dataWidth) << "\n";
         }
-        // for(string s : GetFilesAlphabetically(filePath))
-        // {
-        //     //Look at properties and print accordingly
-            
-        // }
     }
     else                        //Is not a directory
     {   
@@ -223,11 +280,14 @@ void CommandLS(string path)
 
 int main(int argc, char* argv[])
 {
+    string testPath("/home/osboxes/repos/CustomLS/dopelink");
+    struct stat sb;
+    lstat(testPath.c_str(), &sb);
     int opt;
     string path = "";
     if(argc > 2 && argv[2] != NULL)
     {
-        path == argv[2];
+        path = argv[2];
     }
     CommandLS(path);
 
