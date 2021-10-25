@@ -51,16 +51,23 @@ string GetName(string path)
     int i = path.size() - 1;
     for(; i > 0; --i)
     {
-        if(path[i - 1] == '/' || path[i - 1] == '\\')
-        {
-            break;
-        }
+        if(path[i - 1] == '/' || path[i - 1] == '\\') {break;}
     }
     for(; i < path.size(); ++i)
     {
         ss << path[i];
     }
     return ss.str();
+}
+
+string GoUpDirectory(string path)
+{
+    int i = path.size() - 1;
+    for(; i > 0; --i)
+    {
+        if(path[i] == '/' || path[i] == '\\') {break;}
+    }
+    return path.substr(0, i);
 }
 
 bool compareFunction(string sL, string sR)
@@ -70,8 +77,10 @@ bool compareFunction(string sL, string sR)
     return sL < sR;
 }
 
-void MaxWidths(string dir, int &userNameWidth, int &groupNameWidth, int &dataSizeWidth)
+//Gets the largest width for the different field for formatting purposes
+void MaxWidths(string dir, int &numReferencesWidth, int &userNameWidth, int &groupNameWidth, int &dataSizeWidth)
 {
+    numReferencesWidth = 0;
     userNameWidth = 0;
     groupNameWidth = 0;
     dataSizeWidth = 0;
@@ -87,9 +96,14 @@ void MaxWidths(string dir, int &userNameWidth, int &groupNameWidth, int &dataSiz
                 string subFilePath = dir + "/" + en->d_name;
                 struct stat sb;
                 lstat(subFilePath.c_str(), &sb);
+                int numReferencesSize = string(std::to_string(sb.st_nlink)).size();
                 int userSize = string(getpwuid(sb.st_uid)->pw_name).size();
                 int groupSize = string(getpwuid(sb.st_gid)->pw_name).size();
                 int dataSize = string(std::to_string((int)sb.st_size)).size();
+                if(numReferencesSize > numReferencesWidth)
+                {
+                    numReferencesWidth = numReferencesSize;
+                }
                 if(userSize > userNameWidth)
                 {
                     userNameWidth = userSize;
@@ -152,7 +166,7 @@ vector<string> GetFilesAlphabetically(string dir)   //Gets files in order that I
     return fileNames;
 }
 
-string PropertiesOfFile(struct stat &sb, const string &path, int userWidth = 0, int groupWidth = 0, int dataWidth = 0)
+string PropertiesOfFile(struct stat &sb, const string &path, int refWidth = 0, int userWidth = 0, int groupWidth = 0, int dataWidth = 0)
 {
     bool isSoftLink = false;
     stringstream ss;
@@ -183,7 +197,7 @@ string PropertiesOfFile(struct stat &sb, const string &path, int userWidth = 0, 
     if((S_IXOTH & sb.st_mode) == S_IXOTH) ss << "x";
     else ss << "-";
     //Field 5, number of links to this file
-    ss << " " << sb.st_nlink << " ";
+    ss << " " << std::setw(refWidth) << sb.st_nlink << " ";
     //Field 6, user name
     ss << std::setw(userWidth) << getpwuid(sb.st_uid)->pw_name << " ";
     //Field 7, group name
@@ -203,7 +217,7 @@ string PropertiesOfFile(struct stat &sb, const string &path, int userWidth = 0, 
     return ss.str();
 }
 
-void CommandLS(string path)
+void CommandLS(string path)                     //Processes the command
 {
     char workingDirBuf[PATH_BUFFER_SIZE];
     getcwd(workingDirBuf, PATH_BUFFER_SIZE);
@@ -212,18 +226,22 @@ void CommandLS(string path)
     string pathRoot = GetRoot(path);
     string filePath = "";
     
-    if(pathRoot == systemRoot)      //Absolute path
+    if(pathRoot == systemRoot)              //Absolute path
     {
         filePath = path;
     }
-    else if(path != "")             //Relative path
+    else if(path == "..")                   //Directory up
+    {
+
+    }
+    else if(path == "." || path == "")      //Current directory
+    {
+        filePath = workingDir;
+    }
+    else                                    //Relative path
     {
         filePath = workingDir;
         filePath.append("/" + path);
-    }
-    else if(path == "." || path == "")          //Current directory
-    {
-        filePath = workingDir;
     }
 
 
@@ -235,17 +253,18 @@ void CommandLS(string path)
     else if(S_ISDIR(sb.st_mode))     //Is a directory
     {      
         cout << "total " << NumBlocks(filePath) / 2 << "\n";
+        int refWidth;
         int userWidth;
         int groupWidth;
         int dataWidth;
-        MaxWidths(filePath, userWidth, groupWidth, dataWidth);
+        MaxWidths(filePath, refWidth, userWidth, groupWidth, dataWidth);
         for(string name : GetFilesAlphabetically(filePath))
         {
             //Look at properties and print accordingly
             string subFilePath = filePath + "/" + name;
             struct stat sb;
             lstat(subFilePath.c_str(), &sb);
-            cout << PropertiesOfFile(sb, subFilePath, userWidth, groupWidth, dataWidth) << "\n";
+            cout << PropertiesOfFile(sb, subFilePath, refWidth, userWidth, groupWidth, dataWidth) << "\n";
         }
     }
     else                        //Is not a directory
