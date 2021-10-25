@@ -269,15 +269,12 @@ void CommandLS(string path)                     //Processes the command
 
 int main(int argc, char* argv[])
 {
-    string testPath("/home/osboxes/repos/CustomLS/dopelink");
-    struct stat sb;
-    lstat(testPath.c_str(), &sb);
     int opt;
     string path = "";
-    if(argc > 2 && argv[2] != NULL)
+    if(argc > 2 && argv[2] != NULL) //Get path argument if it exists
     {
         path = argv[2];
     }
-    CommandLS(path);
+    CommandLS(path);                //Process the command
     return 0;
 }
